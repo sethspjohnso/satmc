@@ -868,7 +868,7 @@ def satmc(filename,*args,**kwargs):
             axis[3]=max(goodflux)*10.
         if flam == False:
             plt.loglog(goodwavel,goodflux,'ks',mfc='none')
-            plt.errorbar(goodwavel,goodflux,goodfluxerr,fmt=None,ecolor='black')
+            plt.errorbar(goodwavel,goodflux,goodfluxerr,fmt='None',ecolor='black')
             if n_bad > 0:
                 plt.errorbar(wavelim,fluxlim,fluxlim*.2,lolims=True,
                              ecolor='black')
@@ -878,7 +878,7 @@ def satmc(filename,*args,**kwargs):
             lfl=goodflux*3.e-9/goodwavel
             err=goodfluxerr*3.e-9/goodwavel
             plt.loglog(goodwavel,lfl,'ks',mfc='none')
-            plt.errorbar(goodwavel,lfl,err,fmt=None,ecolor='black')
+            plt.errorbar(goodwavel,lfl,err,fmt='None',ecolor='black')
             if n_bad > 0:
                 lfl=fluxlim*3.e-9/wavelim
                 plt.errorbar(wavelim,fluxlim,fluxlim*.2,lolims=True,
