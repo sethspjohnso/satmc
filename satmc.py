@@ -6,6 +6,7 @@ import matplotlib.cm as cmx
 import multiprocessing as mp
 import cosmolopy.distance as cd
 import sys, logging, os, re
+import matplotlib as mpl
 
 """
 Overview of SATMC
@@ -22,6 +23,7 @@ Seth Johnson 05/27/2013
 """
 
 np.seterr(divide='ignore') #ignore any divide by 0 errors
+mplversion=mpl.__version__
 
 #set cosmology and some constants
 cosmo = {'omega_M_0' : 0.3, 'omega_lambda_0' : 0.7, 'h' : 0.7}
@@ -372,8 +374,7 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
     else: method='nearest'
 
     #set log file, primarily for debug purposes
-    log=open('chain_'+str(chain_id)+'.log',"a")
-    sys.stdout=log
+    sys.stdout=open('chain_'+str(chain_id)+'.log',"w")
 
     #start chain segment
     for n in xrange(nstep):
@@ -481,21 +482,21 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
             pdim*=nmod
             p0+=nparm
 
-        #exclude wavelengths outside SEDs
-        whgood=(mod_tot[0]['good'] != 0)
-        gf=goodflux[whgood]
-        gw=goodwavel[whgood]
-        gfe=goodfluxerr[whgood]
-        if wavelim != None:
-            whlimit=(mod_tot[0]['limits'] != 0)
-            if sum(whlimit) > 0:
-                wl=wavelim[whlimit]
-                fl=fluxlim[whlimit]
-            else: wavelim=None
-
         #determine likelihood at each combination of models
         lnL=np.zeros(2**ndim,dtype='longdouble')
         for i in xrange(2**ndim):
+            #exclude wavelengths outside SEDs
+            whgood=(mod_tot[0]['good'] != 0)
+            gf=goodflux[whgood]
+            gw=goodwavel[whgood]
+            gfe=goodfluxerr[whgood]
+            if wavelim != None:
+                whlimit=(mod_tot[0]['limits'] != 0)
+                if sum(whlimit) > 0:
+                    wl=wavelim[whlimit]
+                    fl=fluxlim[whlimit]
+                else: wavelim=None
+
             lnL[i]=sum(-(gf-mod_tot[i]['good'][whgood])**2./(2*gfe**2))
             if (not 'ig_lim' in kwargs) and (wavelim != None):
                 sel=np.array([int(u[0]) for u in upperlim]) != 0
@@ -868,7 +869,10 @@ def satmc(filename,*args,**kwargs):
             axis[3]=max(goodflux)*10.
         if flam == False:
             plt.loglog(goodwavel,goodflux,'ks',mfc='none')
-            plt.errorbar(goodwavel,goodflux,goodfluxerr,fmt='None',ecolor='black')
+            if mplversion <= '1.2.1':
+                plt.errorbar(goodwavel,goodflux,goodfluxerr,fmt=None,ecolor='black')
+            else:  
+                plt.errorbar(goodwavel,goodflux,goodfluxerr,fmt='none',ecolor='black')
             if n_bad > 0:
                 plt.errorbar(wavelim,fluxlim,fluxlim*.2,lolims=True,
                              ecolor='black')
@@ -878,7 +882,10 @@ def satmc(filename,*args,**kwargs):
             lfl=goodflux*3.e-9/goodwavel
             err=goodfluxerr*3.e-9/goodwavel
             plt.loglog(goodwavel,lfl,'ks',mfc='none')
-            plt.errorbar(goodwavel,lfl,err,fmt='None',ecolor='black')
+            if mplversion <= '1.2.1':
+                plt.errorbar(goodwavel,lfl,err,fmt=None,ecolor='black')
+            else:
+                plt.errorbar(goodwavel,lfl,err,fmt='none',ecolor='black')
             if n_bad > 0:
                 lfl=fluxlim*3.e-9/wavelim
                 plt.errorbar(wavelim,fluxlim,fluxlim*.2,lolims=True,
@@ -959,6 +966,7 @@ def satmc(filename,*args,**kwargs):
             if seds[i].nparm > 1:
                 gs=np.array([p in seds[i].param_name for p in param_name])
                 seds[i].grid[:,dr[gs]]=np.log10(seds[i].grid[:,dr[gs]])
+                seds[i].grid[np.isneginf(seds[i].grid)] = 0
 
     #The MCMC array that will contain all the steps
     chain=np.zeros(nchain,dtype=[('lnl_iter',np.longdouble,(nstep,)),
