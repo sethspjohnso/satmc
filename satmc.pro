@@ -775,22 +775,22 @@ for n=0,nstep-1 do begin
       p0+=nparm
    endfor
 
-   ;exclude observed data points outside SED models
-   whgood=where(mod_tot[0].selg gt 0)
-   gf=goodflux[whgood]
-   gw=goodwavel[whgood]
-   gfe=goodfluxerr[whgood]
-   if n_bad ne 0 then begin
-      whbad=where(mod_tot[0].selb gt 0,nwhbad)
-      if nwhbad ne 0 then begin
-         wl=wavelim[whbad]
-         fl=fluxlim[whbad]
-      endif else ig_lim=1
-   endif
-   
    ;now determine likelihood at each possible combination of models
    lnL=dblarr(n_elements(mod_tot))
    for i=0,n_elements(lnL)-1 do begin
+      ;exclude observed data points outside SED models
+      whgood=where(mod_tot[0].selg gt 0)
+      gf=goodflux[whgood]
+      gw=goodwavel[whgood]
+      gfe=goodfluxerr[whgood]
+      if n_bad ne 0 then begin
+        whbad=where(mod_tot[0].selb gt 0,nwhbad)
+        if nwhbad ne 0 then begin
+            wl=wavelim[whbad]
+            fl=fluxlim[whbad]
+        endif else ig_lim=1
+      endif
+
       lnL[i]=total(-(gf-mod_tot[i].good[whgood])^2./(2.*gfe^2.))
       ;include upper limits?
       if not keyword_set(ig_lim) and n_bad ne 0 then begin
