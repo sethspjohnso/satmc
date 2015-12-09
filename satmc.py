@@ -22,7 +22,7 @@ may be imposed  through the use of parameter/likelihood priors.
 Seth Johnson 05/27/2013
 """
 
-np.seterr(divide='ignore') #ignore any divide by 0 errors
+np.seterr(all='ignore') #ignore over/underflow 0 errors
 mplversion=mpl.__version__
 
 #set cosmology and some constants
@@ -110,7 +110,7 @@ def find_nearest_grid(grid,p):
         status=False                #point lies outside the grid
     if ((intp < 0) | (intp > 1)).any():
         status=False                #irregular gridding prevents bracketing
-    if not status: return {'neargrid':neargrid,'intp':intp,'status':status}
+    if not status: return (neargrid,intp,status)
 
     #get indices of nearest grid points and mark their location
     if len(grid[:,0]) > 2:
