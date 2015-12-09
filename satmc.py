@@ -486,12 +486,12 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
         lnL=np.zeros(2**ndim,dtype='longdouble')
         for i in xrange(2**ndim):
             #exclude wavelengths outside SEDs
-            whgood=(mod_tot[0]['good'] != 0)
+            whgood=(mod_tot[i]['good'] != 0)
             gf=goodflux[whgood]
             gw=goodwavel[whgood]
             gfe=goodfluxerr[whgood]
             if wavelim != None:
-                whlimit=(mod_tot[0]['limits'] != 0)
+                whlimit=(mod_tot[i]['limits'] != 0)
                 if sum(whlimit) > 0:
                     wl=wavelim[whlimit]
                     fl=fluxlim[whlimit]
