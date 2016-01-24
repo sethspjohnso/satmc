@@ -182,7 +182,7 @@ def verify_parameters(params,params_old,params_std,param_name,seds,param_min,
             null,intp,status=find_nearest_grid(seds[i].grid,params[sel])
             if not status:
                 if not np.isfinite(intp).all():
-                    sel[sel]=np.isfinite(intp)
+                    sel[sel]=np.invert(np.isfinite(intp))
                 params[sel]=(np.random.multivariate_normal(params_old,
                                                            params_std))[sel]
                 return False
@@ -382,7 +382,7 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
         
         #make proposal step
         if n == 0 and lnl_init == 0:
-            params_new=params_init
+            params_new=params_init+0.
             params_old=params_init
         else:
             if n == 0: params_old=params_init
@@ -706,6 +706,7 @@ def satmc(filename,*args,**kwargs):
                          and saved after every step_int steps.
               param_min - Numpy array of user defined parameter minimums
               param_max - Numpy array of user defined parameter maximums
+              param_init - Numpy array of initial parameter values
               params_std - User defined parameter covariance matrix
               no_temp - Boolean to disable parallel tempering
               ig_lim - Boolen to ignore upper limits
@@ -975,16 +976,16 @@ def satmc(filename,*args,**kwargs):
                                  ('params_std',float,(nparm+1,nparm+1))])
     
     #set initial guesses
-    if 'params_init' not in kwargs:
+    if 'param_init' not in kwargs:
         for i in xrange(nchain):
-            chain['params_iter'][i,0:nparm,0]= \
+            chain['param_iter'][i,0:nparm,0]= \
                 np.random.uniform(param_min,param_max)
     else:
-        params_init=np.array(kwargs.get('params_init'))
+        param_init=np.array(kwargs.get('param_init'))
         #check user supplied initial guess is within parameter space
         if len(dr) != 0:
-            np.put(params_init,dr,np.log10(params_init[dr]))
-        if ((params_init < param_min) | (params_init > param_max)).any():
+            np.put(param_init,dr,np.log10(param_init[dr]))
+        if ((param_init < param_min) | (param_init > param_max)).any():
             print 'Initial parameter guess outside parameter bounds.'
             return
         else:
