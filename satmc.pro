@@ -2251,7 +2251,7 @@ endif else begin
                   if not tag_exist(chain_struct,'SED') then begin
                      s=size(sed,/dim)
                      chain_struct=create_struct(chain_struct,'SED', $
-                                                rebin(sed,[s,nchain]))
+                                                rebin(sed,[s,nstep,nchain]))
                   endif 
                   chain_struct.SED[*,*,0:step_int*2-1,m]=sed
                endif
@@ -2538,7 +2538,7 @@ endif else begin
                if not tag_exist(chain_struct,'SED') then begin
                   s=size(sed,/dim)
                   chain_struct=create_struct(chain_struct,'SED', $
-                                             rebin(sed,[s,nchain]))
+                                             rebin(sed,[s,nstep,nchain]))
                endif 
                chain_struct.SED[*,*,n*step_int:(n+1)*step_int-1,m]=sed
             endif
