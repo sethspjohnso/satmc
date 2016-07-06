@@ -2249,7 +2249,7 @@ endif else begin
 
                if keyword_set(synthesis_model) then begin
                   if not tag_exist(chain_struct,'SED') then begin
-                     s=size(sed,/dim)
+                     s=(size(sed,/dim))[0:1]
                      chain_struct=create_struct(chain_struct,'SED', $
                                                 rebin(sed,[s,nstep,nchain]))
                   endif 
@@ -2536,7 +2536,7 @@ endif else begin
 
             if keyword_set(synthesis_model) then begin
                if not tag_exist(chain_struct,'SED') then begin
-                  s=size(sed,/dim)
+                  s=(size(sed,/dim))[0:1]
                   chain_struct=create_struct(chain_struct,'SED', $
                                              rebin(sed,[s,nstep,nchain]))
                endif 
