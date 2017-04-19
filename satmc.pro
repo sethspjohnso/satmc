@@ -106,7 +106,7 @@ function find_nearest_grid,grid,p,intp=intp,status=status
 ;         respect to the bracketing grid points, used for interpolation
 ;  STATUS - returns -1 if P is not bound by GRID
   np=n_elements(p)
-  ngrid=2^np
+  ngrid=2LL^np
   status=0
   missing=0
   max_grid=fltarr(np)
