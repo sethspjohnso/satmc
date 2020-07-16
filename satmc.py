@@ -7,6 +7,7 @@ import multiprocessing as mp
 import cosmolopy.distance as cd
 import sys, logging, os, re
 import matplotlib as mpl
+import importlib
 
 """
 Overview of SATMC
@@ -46,7 +47,7 @@ def cal_lum(sed):
     """
   
     #assume D(z)=50 Mpc
-    for i in xrange(len(sed)):
+    for i in range(len(sed)):
         lnu=sed[i].fluxsim*dist**2./(1.+z50)/(1.13e-8)/c
         lum=abs(np.trapz(lnu,c/sed[i].wavesim))
         sed[i].lum=lambda: None
@@ -62,7 +63,7 @@ def value_locate(refx,x):
     x=np.atleast_1d(x)
     loc=np.zeros(len(x),dtype='int')
 
-    for i in xrange(len(x)):
+    for i in range(len(x)):
         ix=x[i]
         ind=((refx-ix) <= 0).nonzero()[0]
         if len(ind) == 0: loc[i]=-1
@@ -96,7 +97,7 @@ def find_nearest_grid(grid,p):
     t_grid=grid
 
     #find grid points that bracket all points in P
-    for i in xrange(nparm):
+    for i in range(nparm):
         ind=value_locate(grid[:,i],p[i])
         min_grid[i]=grid[max(ind,0),i]
         max_grid[i]=grid[min(ind+1,len(grid[:,0])-1),i]
@@ -114,10 +115,10 @@ def find_nearest_grid(grid,p):
 
     #get indices of nearest grid points and mark their location
     if len(grid[:,0]) > 2:
-        for i in xrange(ngrid):
+        for i in range(ngrid):
             ind=(np.where(grid[:,0] == n_grid[0,i % 2]))[0]
             grid=grid[ind,:]
-            for j in xrange(1,nparm):
+            for j in range(1,nparm):
                 g_ind=i/2**j % 2
                 sel=grid[:,j] == n_grid[j,g_ind]
                 if np.invert(sel).all():
@@ -176,7 +177,7 @@ def verify_parameters(params,params_old,params_std,param_name,seds,param_min,
         return False
 
     #check against parameter grid
-    for i in xrange(len(seds)):
+    for i in range(len(seds)):
         sel=np.array([p in seds[i].param_name for p in param_name])
         if sel.any():
             null,intp,status=find_nearest_grid(seds[i].grid,params[sel])
@@ -193,7 +194,7 @@ def verify_parameters(params,params_old,params_std,param_name,seds,param_min,
         p_prior=(np.atleast_1d(kwargs.get('prior_mode')) == 1)
         if p_prior.any():
             priors=priors[p_prior]
-            for i in xrange(len(priors)):
+            for i in range(len(priors)):
                 prior_list=re.split('\(|\)',priors[i])
                 prior_name=prior_list.pop(0)
                 if prior_list[-1] == '' : null=prior_list.pop(-1)
@@ -255,7 +256,7 @@ def get_model_observed(wave,flux,goodwavel,wavelim,**kwargs):
     if 'filter_list' in kwargs:
         filter_list=kwargs.get('filter_list')
         good=filter_list[:]['good']
-        for i in xrange(len(whmod)):
+        for i in range(len(whmod)):
             fwave=filter_list[good][i]['filter']['wave']
             fresp=filter_list[good][i]['filter']['response']
             norm=filter_list[good][i]['filter']['norm']
@@ -266,7 +267,7 @@ def get_model_observed(wave,flux,goodwavel,wavelim,**kwargs):
         if wavelim != None:
             limits=np.invert(filter_list[:]['good'])
             whmod=(wavelim < max(wave)) & (wavelim > min(flux))
-            for i in xrange(len(whmod)):
+            for i in range(len(whmod)):
                 fwave=filter_list[limits][i]['filter']['wave']
                 fresp=filter_list[limits][i]['filter']['response']
                 norm=filter_list[limits][i]['filter']['norm']
@@ -302,7 +303,7 @@ def os_gauss(x,s,upperlim):
     """
     npt=len(upperlim)
     pdf=np.empty(npt,dtype='longdouble')
-    for i in xrange(npt):
+    for i in range(npt):
         uparm=upperlim[i].split(',')
         if int(uparm[0]) == 1:
             if x[i] < s[i]: pdf[i]=1 
@@ -367,7 +368,6 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
     param_arr=np.zeros([len(params_init),nstep])
     lnl_arr=np.zeros(nstep,dtype='longdouble')
     tot_lum_arr=np.zeros(nstep,dtype='longdouble')
-    sed=np.zeros(nstep)
     nsed=len(seds)
     lum_arr=np.zeros(nsed)
     if not 'no_interp' in kwargs: method='linear'
@@ -377,7 +377,7 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
     sys.stdout=open('chain_'+str(chain_id)+'.log',"w")
 
     #start chain segment
-    for n in xrange(nstep):
+    for n in range(nstep):
         mod_obs=[]
         
         #make proposal step
@@ -396,7 +396,7 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
         
         param_arr[:,n]=params_new
 
-        for l in xrange(len(seds)):
+        for l in range(len(seds)):
             if (l == 0 and 'synthesis_model' in kwargs):
                 #build a dict to contain parameter values
                 synth_tags=seds[0].synth_param
@@ -404,14 +404,17 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
                                        synth_tags[i]])[0] 
                            if (synth_tags[i] in param_name) 
                            else seds[0].synth_val[i] for i in 
-                           xrange(len(synth_tags))]
+                           range(len(synth_tags))]
+                for i in range(len(dr)):
+                    if dr[i]: synth_val[i]=10**synth_val[i]
                 synth_kwargs=dict(zip(synth_tags,synth_val))
                 synthesis_model=kwargs.get('synthesis_model')
 
                 #load in and call SED synthesis routine
-                exec("from "+synthesis_model+" import "+synthesis_model+
-                     " as synth_mod")
-                wave,flux,err=synth_mod('model'+str(chain_id),**synth_kwargs)
+                #exec("from "+synthesis_model+" import "+synthesis_model+" as synth_mod")
+                synth_mod=getattr(importlib.import_module(synthesis_model),synthesis_model)
+                #wave,flux=synth_mod('model'+str(chain_id),**synth_kwargs)
+                wave,flux=synth_mod(**synth_kwargs)
                 
                 #calculate bolometric luminosity
                 lnu=flux*dist**2/(1+z50)*(3.124e-7)
@@ -419,7 +422,11 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
 
                 #correct SED for redshift
                 s_wave,s_flux=shift_sed(wave,flux,params_new[-1])
-                synth_sed={'wave_synth':s_wave,'flux_synth':s_flux}
+                #synth_sed={'wave_synth':s_wave,'flux_synth':s_flux}
+                if 'sed' not in locals(): 
+                    sed=np.ndarray((nstep,2,len(s_wave)))
+                sed[n]=np.array([s_wave,s_flux])
+
                 good,limits=get_model_observed(s_wave,s_flux,goodwavel,wavelim,
                                                **kwargs)
                 mod_obs.append([{'loc':0,'good':good,'limits':limits}])
@@ -447,33 +454,35 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
                 lum_arr[l]=interpol.griddata(pgrid,np.array(lum),(params_new[sel]).reshape((1,sum(sel))),method=method)
                 
                 t_obs=np.empty(0,dtype='object')
-                for i in xrange(len(int_grid)):
+                for i in range(len(int_grid)):
                     s_wave,s_flux=shift_sed(wave[i],flux[i],params_new[-1])
                     good,limits=get_model_observed(s_wave,s_flux,goodwavel,
                                                    wavelim,**kwargs)
                     t_obs=np.append(t_obs,{'loc':int_grid[i],'good':good,
                                            'limits':limits})
                 mod_obs.append(t_obs)
-
+                
         #combine fluxes from SED sets
         sel=np.array([('norm' not in name) and ('redshift' not in name) 
                       for name in param_name])
         ndim=sum(sel)
+        nparams=ndim
+        if 'synthesis_model' in kwargs: ndim-=seds[0].nparm
         if wavelim == None:
-            mod_tot=np.zeros(2**ndim,dtype=[('params',float,(ndim,)),
+            mod_tot=np.zeros(2**ndim,dtype=[('params',float,(nparams,)),
                                             ('good',float,len(goodwavel))])
         
         else:
-            mod_tot=np.zeros(2**ndim,dtype=[('params',float,(ndim,)),
+            mod_tot=np.zeros(2**ndim,dtype=[('params',float,(nparams,)),
                                             ('good',float,len(goodwavel)),
                                             ('limits',float,len(wavelim))])
         pdim=1
         p0=0
-        for l in xrange(nsed):
+        for l in range(nsed):
             nmod=len(mod_obs[l])
             nparm=seds[l].nparm
-            for i in xrange(2**ndim):
-                ind=(i/pdim % nmod)
+            for i in range(2**ndim):
+                ind=int(i/pdim % nmod)
                 mod_tot[i]['params'][p0:p0+nparm]= \
                     seds[l].grid[mod_obs[l][ind]['loc'],:]
                 mod_tot[i]['good']+=mod_obs[l][ind]['good']
@@ -481,10 +490,10 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
                     mod_tot[i]['limits']+=mod_obs[l][ind]['limits']
             pdim*=nmod
             p0+=nparm
-
+        
         #determine likelihood at each combination of models
         lnL=np.zeros(2**ndim,dtype='longdouble')
-        for i in xrange(2**ndim):
+        for i in range(2**ndim):
             #exclude wavelengths outside SEDs
             whgood=(mod_tot[i]['good'] != 0)
             gf=goodflux[whgood]
@@ -506,7 +515,6 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
             if (mod_tot[i]['good'] == 0).all(): lnL[i]=-10**np.longdouble(3000)
         
         #interpolate likelihoods over model grid
-        
         if ndim > 0:
             l=lnL
             maxl=max(l)
@@ -523,15 +531,14 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
             l_prior=(np.atleast_1d(kwargs.get('prior_mode')) == 2)
             if l_prior.any():
                 priors=priors[l_prior]
-                for i in xrange(len(priors)):
+                for i in range(len(priors)):
                     prior_list=re.split('\(|\)',priors[i])
                     prior_name=prior_list.pop(0)
                     if prior_list[-1] == '' : null=prior_list.pop(-1)
                     prior_args=prior_list
                     prior_kwargs={'params':params_new,'param_name':param_name,
                                   'lum_arr':lum_arr,'seds':seds}
-                    exec("from "+prior_name+" import "+prior_name+
-                         " as prior_mod")
+                    exec("from "+prior_name+" import "+prior_name+" as prior_mod")
                     lnL+=prior_mod(*prior_args,**prior_kwargs)
         
         lnl_arr[n]=lnL[0]
@@ -554,10 +561,9 @@ def run_chain(queue,chain_id,nstep,params_init,lnl_init,seds,goodwavel,
     #report results of the chain and save to file
     chain_result={'param_arr':param_arr,'lnl_arr':lnl_arr,
                   'lum_arr':tot_lum_arr,'chain_id':chain_id}
-    if 'synthesis_model' in kwargs: chain_result['sed']=synth_sed
+    if 'synthesis_model' in kwargs: chain_result['sed']=sed
     queue.put(chain_result)
     np.save('chain_'+str(chain_id),chain_result)
-
 
 def cal_lgrid(seds,wave,flux,fluxerr,upperlim,norm_arr,param_max,
               param_min,param_name,nparm,dr,minz,maxz,**kwargs):
@@ -568,7 +574,7 @@ def cal_lgrid(seds,wave,flux,fluxerr,upperlim,norm_arr,param_max,
 
     seddim=np.empty(0)
     nsed=len(seds)
-    for i in xrange(nsed):
+    for i in range(nsed):
         if norm_arr[i]: seddim=np.append(seddim,31)
         seddim=np.append(seddim,len(seds[i].Template))
     nz=np.rint((maxz-minz)/0.1)
@@ -581,7 +587,7 @@ def cal_lgrid(seds,wave,flux,fluxerr,upperlim,norm_arr,param_max,
 
     j=0
     indx=np.unravel_index(np.arange(0,ngrid,dtype=int),seddim)
-    for i in xrange(nsed):
+    for i in range(nsed):
         if norm_arr[i]:
             norm=np.array(param_name) == 'norm'+str(i+1)
             normgrid=np.linspace(param_min[j],param_max[j],31)
@@ -597,10 +603,10 @@ def cal_lgrid(seds,wave,flux,fluxerr,upperlim,norm_arr,param_max,
         ldist=cd.luminosity_distance(zgrid,**cosmo)
         flux_grid=np.empty((len(wave),ngrid))
 
-        for i in xrange(int(ngrid)):
+        for i in range(int(ngrid)):
             indx=np.unravel_index(i,seddim)
             j=0
-            for k in xrange(nsed):
+            for k in range(nsed):
                 mw=seds[k].Template[0].wavesim
                 if norm_arr[k]:
                     sel=np.array(param_name) == 'norm'+str(k+1)
@@ -637,7 +643,7 @@ def cal_lgrid(seds,wave,flux,fluxerr,upperlim,norm_arr,param_max,
         l_priors=kwarg.get('prior_mode') == 2
         if l_prior.any():
             priors=priors[l_prior]
-            for i in xrange(len(priors)):
+            for i in range(len(priors)):
                 prior_list=re.split('\(|\)',priors[i])
                 prior_name=prior_list.pop(0)
                 if prior_list[-1] == '' : null=prior_list.pop(-1)
@@ -659,23 +665,23 @@ class sed_object:
         if synthesis_model == None:
             param_name = [s for s in tags if s.lower() not in req_tags ]
             grid=np.empty([len(Template),len(param_name)])
-            for i in xrange(len(param_name)):
+            for i in range(len(param_name)):
                 grid[:,i]=Template[param_name[i]]
             self.grid=grid
             self.ngrid=[len(np.unique(grid[:,i])) 
-                           for i in xrange(len(param_name))]
+                           for i in range(len(param_name))]
         else:
             synth_param=[s for s in tags]
             self.synth_param=synth_param
             self.synth_val=Template[synth_param][0]
             param_name=[]
             grid=[]
-            for i in xrange(len(synth_param)):
+            for i in range(len(synth_param)):
                 if len(np.atleast_1d(self.synth_val[i])) == 2:
                     param_name.append(synth_param[i])
                     grid.append(self.synth_val[i])
             self.grid=np.array(grid).T
-            self.ngrid=[2 for i in xrange(len(param_name))]
+            self.ngrid=[2 for i in range(len(param_name))]
         self.param_name=param_name
         self.nparm=len(param_name)
                    
@@ -741,7 +747,7 @@ def satmc(filename,*args,**kwargs):
 
     #read in acceptable keyword arguments
     if len(args)==0:
-        print 'At least 1 SED template required.'
+        print ('At least 1 SED template required.')
         return
     else: nsed=len(args)
     redshift=kwargs.get('redshift', None)
@@ -769,12 +775,12 @@ def satmc(filename,*args,**kwargs):
     #combine SEDs into single object
     seds=np.empty(nsed,dtype=object)
     if nsed > 0:
-        for i in xrange(nsed):
+        for i in range(nsed):
             sed=(args[i])[:]
             tags=sed.dtype.names
             if (sum([s in ['wavesim','fluxsim'] for s in tags]) < 2 and 
                 synthesis_model == None):
-                print 'SED object must contain WAVESIM and FLUXSIM attributes.'
+                print ('SED object must contain WAVESIM and FLUXSIM attributes.')
                 return
             if 'lum' not in tags and synthesis_model == None: sed=cal_lum(sed)
             seds[i]=sed_object(args[i],synthesis_model=synthesis_model)
@@ -848,10 +854,10 @@ def satmc(filename,*args,**kwargs):
     goodfluxerr=fluxerr[good]
 
     #check there is enough points for a reasonable fit
-    print 'Number of useful data points:',n_good
-    if n_bad != 0: print 'Number of useful upper limits:',n_bad
+    print ('Number of useful data points:',n_good)
+    if n_bad != 0: print ('Number of useful upper limits:',n_bad)
     if n_good <= 2:
-        print 'Not enough data points, quitting.'
+        print ('Not enough data points, quitting.')
         return
 
     #plot observed
@@ -904,14 +910,14 @@ def satmc(filename,*args,**kwargs):
     #Setup parameter arrays
         
     #Boolean array to turn on model normalization
-    norm_arr=np.array(['norm'+str(i+1) in kwargs for i in xrange(nsed)])
+    norm_arr=np.array(['norm'+str(i+1) in kwargs for i in range(nsed)])
     if synthesis_model != None: norm_arr[0]=False
     #setup filters
     if filters != None:
         filter_list=np.empty(len(filters),dtype=[('good',bool),
                                                  ('filter',object)])
         filter_list[:]['good']=good
-        for i in xrange(len(filters)):
+        for i in range(len(filters)):
             fwave,fresponse=np.loadtxt(filters[i],unpack=True)
             fnorm=abs(np.trapz(c/fwave,fresponse/(h*c/fwave)))
             filter_list[i]['filter']={'wave':fwave,'response':fresponse,
@@ -924,7 +930,7 @@ def satmc(filename,*args,**kwargs):
     pmax=np.empty(1)
     npgrid=[]
     nparm=0
-    for i in xrange(nsed):
+    for i in range(nsed):
         if norm_arr[i]:
             param_name+=(['norm'+str(i+1)])
             norm=np.atleast_1d(kwargs.get('norm'+str(i+1)))
@@ -954,7 +960,7 @@ def satmc(filename,*args,**kwargs):
         param_min=np.maximum(kwargs.get('param_min'),pmin)
     else: param_min=pmin
     
-    #Check for large dynamical xranges
+    #Check for large dynamical ranges
     r=abs(np.log10(param_max)-np.log10(param_min))
     dr=(((r >= 2) & (param_min != 0)) | 
         ((np.log10(param_max) >= 2) & (param_min == 0)))
@@ -963,7 +969,7 @@ def satmc(filename,*args,**kwargs):
         param_max[dr]=np.log10(param_max[dr])
         param_min[dr]=np.log10(param_min[dr])
         np.place(param_min,np.isinf(param_min),0)
-        for i in xrange(nsed):
+        for i in range(nsed):
             if seds[i].nparm > 1:
                 gs=np.array([p in seds[i].param_name for p in param_name])
                 seds[i].grid[:,dr[gs]]=np.log10(seds[i].grid[:,dr[gs]])
@@ -974,11 +980,11 @@ def satmc(filename,*args,**kwargs):
                                  ('lum_iter',np.longdouble,(nstep,)),
                                  ('params_iter',float,(nparm+1,nstep)),
                                  ('params_std',float,(nparm+1,nparm+1))])
-    
+   
     #set initial guesses
     if 'param_init' not in kwargs:
-        for i in xrange(nchain):
-            chain['param_iter'][i,0:nparm,0]= \
+        for i in range(nchain):
+            chain['params_iter'][i,0:nparm,0]= \
                 np.random.uniform(param_min,param_max)
     else:
         param_init=np.array(kwargs.get('param_init'))
@@ -986,7 +992,7 @@ def satmc(filename,*args,**kwargs):
         if len(dr) != 0:
             np.put(param_init,dr,np.log10(param_init[dr]))
         if ((param_init < param_min) | (param_init > param_max)).any():
-            print 'Initial parameter guess outside parameter bounds.'
+            print ('Initial parameter guess outside parameter bounds.')
             return
         else:
             chain['params_iter'][:,0:nparm,0]= \
@@ -1015,7 +1021,7 @@ def satmc(filename,*args,**kwargs):
     #Multi-normal covariance matrix to draw steps
     if 'params_std' not in kwargs:
         params_std=(0.01*(param_max-param_min)/(nparm+1))**2.
-        for i in xrange(len(npgrid)):
+        for i in range(len(npgrid)):
             if npgrid[i] > 2:
                 params_std[i]=((param_max[i]-param_min[i])/npgrid[i])**2.
         params_std[nparm]=delz**2.
@@ -1050,17 +1056,17 @@ def satmc(filename,*args,**kwargs):
     t_period=0
     
     #set chain temperatures
-    temp=np.array([10**(3.5*i/nchain)-1 for i in xrange(nchain)])
+    temp=np.array([10**(3.5*i/nchain)-1 for i in range(nchain)])
     if 'no_temp' in kwargs: temp[:]=0
     
     #run MCMC chains in blocks of length step_init, first test for 
     #convergence and acceptance rate (i.e. the burn-in period)
     if not 'adaptive_step' in kwargs:
-        if kwargs.get('restart',None) == 1:
+        if kwargs.get('restart',0) == 1:
             #restore chains
             chain=np.load('parent_burnin.npy')
 
-        if kwargs.get('restart',None) <= 1:
+        if kwargs.get('restart',0) <= 1:
             while (pchange <= 0.2 or pchange >= 0.26):
                 #if doing parallel tempering, make swaps between 
                 #fudical cold and warm chains
@@ -1085,8 +1091,7 @@ def satmc(filename,*args,**kwargs):
                 #run the chain
                 procs=[]
                 chain_queue=mp.Queue()
-
-                for i in xrange(nchain):
+                for i in range(nchain):
                     p=mp.Process(target=run_chain,
                                  args=(chain_queue,i,step_int*2,
                                        chain['params_iter'][i,:,0],
@@ -1105,10 +1110,11 @@ def satmc(filename,*args,**kwargs):
                     ind=chain_result['chain_id']
                     if synthesis_model != None:
                         sed=chain_result['sed']
+                        sed_shape=(nstep,)+(sed.shape)[1:]
                         if not 'sed' in chain.dtype.names:
-                            dt=chain.dtype.descr+[('sed',float,sed.shape)]
+                            dt=chain.dtype.descr+[('sed',float,sed_shape)]
                             chain=np.empty(chain.shape,dtype=dt)
-                        chain['sed'][ind]=sed
+                        chain['sed'][ind,0:step_int*2,:,:]=sed
                     chain['params_iter'][ind,:,0:step_int*2]= \
                         chain_result['param_arr']
                     chain['lnl_iter'][ind,0:step_int*2]=chain_result['lnl_arr']
@@ -1122,7 +1128,7 @@ def satmc(filename,*args,**kwargs):
                 params_std_old=chain['params_std']
                 pchange_ch=np.empty(nchain)
 
-                for i in xrange(nchain):
+                for i in range(nchain):
                     dlnl_iter=chain['lnl_iter'][i,step_int-1:step_int*2-1]- \
                         chain['lnl_iter'][i,step_int:step_int*2]
                     whchange=abs(dlnl_iter[0:step_int-2]) > 0
@@ -1133,7 +1139,7 @@ def satmc(filename,*args,**kwargs):
                 else: pchange=pchange_ch[0]
                 if (pchange == 0).any(): pchange=0.
                 if (pchange < 0.20) or (pchange > 0.26):
-                    for i in xrange(nchain):
+                    for i in range(nchain):
                         cov=chain['params_std'][i,:,:]
                         if pchange_ch[i] < 0.05: cov=cov*0.05
                         elif pchange_ch[i] > 0.26:
@@ -1158,8 +1164,8 @@ def satmc(filename,*args,**kwargs):
 
                 #check convergence using the Geweke dianogstic
                 if (pchange >= 0.20) and (pchange <= 0.26):
-                    if not 'no_temp' in kwargs: ra=xrange(1)
-                    else: ra=xrange(nchain)
+                    if not 'no_temp' in kwargs: ra=range(1)
+                    else: ra=range(nchain)
                     for i in ra:
                         av1=np.average(chain['lnl_iter'][i,0:int(0.2*step_int)])
                         av2=np.average(chain['lnl_iter'][i,step_int:2*step_int])
@@ -1171,7 +1177,7 @@ def satmc(filename,*args,**kwargs):
                 #move about (flat likelihood space) or too far from 
                 #current maximum likelihood
                 maxl_ch=np.empty(nchain)
-                for i in xrange(nchain):
+                for i in range(nchain):
                     lnl_chain=chain['lnl_iter'][i,:]
                     maxl_ch[i]=np.amax(lnl_chain[np.nonzero(lnl_chain)])
                 diffl=maxl_ch-np.amax(maxl_ch)
@@ -1193,10 +1199,11 @@ def satmc(filename,*args,**kwargs):
                             chain['params_std'][i,:,:]=params_std_old[i,:,:]
                     else:
                         for i in badchain:
-                            rind=np.rint(np.random.random()*(step_int-1))
+                            rind=int(np.random.random()*(step_int-1))
                             if (pchange >= 0.2) and (pchange <= 0.26):
                                 rchain=0
                             else:
+                                goodchain.nonzero()
                                 rchain=np.random.choice((goodchain.nonzero())[0])
                             
                             chain['params_iter'][i,:,0]= \
@@ -1223,18 +1230,18 @@ def satmc(filename,*args,**kwargs):
     else: period=0
     #With burn-in complete, run the full chains
     #separate the chains into blocks of STEP_INT length for restart points
-    if kwargs.get('restart',None) == 2:
+    if kwargs.get('restart',0) == 2:
         #restore chains if necessary
         chain=np.load('parent_chain.npy')
 
-    if kwargs.get('restart',None) <= 2:
+    if kwargs.get('restart',0) <= 2:
         swap=0
         n=period
         while n < nstep/step_int:
             #perform a Metropolis-Hastings swap for a pair of adjacent chains
             if not 'no_temp' in kwargs:
                 while True:
-                    rindex=np.random.choice(xrange(nchain))
+                    rindex=np.random.choice(range(nchain))
                     while True:
                         if np.random.random() > 0.5:
                             pair=min(max(0,rindex+1),nchain-1)
@@ -1245,7 +1252,7 @@ def satmc(filename,*args,**kwargs):
                 
                 tpair=10**(3.5*pair/nchain)-1
                 trindex=10**(3.5*rindex/nchain)-1
-                sel=np.array(xrange((n-1)*step_int,n*step_int))
+                sel=np.array(range((n-1)*step_int,n*step_int))
                 maxpair=np.amax(chain['lnl_iter'][pair,sel])
                 maxrindex=np.amax(chain['lnl_iter'][rindex,sel])
                 psel=np.argmax(chain['lnl_iter'][pair,sel])
@@ -1274,7 +1281,7 @@ def satmc(filename,*args,**kwargs):
             procs=[]
             chain_queue=mp.Queue()
     
-            for i in xrange(nchain):
+            for i in range(nchain):
                 p=mp.Process(target=run_chain,
                              args=(chain_queue,i,step_int,
                                    chain['params_iter'][i,:,n*step_int-1],
@@ -1293,10 +1300,11 @@ def satmc(filename,*args,**kwargs):
                 ind=chain_result['chain_id']
                 if synthesis_model != None:
                     sed=chain_result['sed']
+                    sed_shape=(nstep,)+(sed.shape)[1:]
                     if not 'sed' in chain.dtype.names:
-                        dt=chain.dtype.descr+[('sed',float,sed.shape)]
+                        dt=chain.dtype.descr+[('sed',float,sed_shape)]
                         chain=np.empty(chain.shape,dtype=dt)
-                    chain['sed'][ind]=sed
+                    chain['sed'][ind,n*step_int:(n+1)*step_int,:,:]=sed
                 chain['params_iter'][ind,:,n*step_int:(n+1)*step_int]= \
                     chain_result['param_arr']
                 chain['lnl_iter'][ind,n*step_int:(n+1)*step_int]= \
@@ -1354,10 +1362,10 @@ def satmc(filename,*args,**kwargs):
                     #ensure convergence is still maintained
                     if (pchange > 0.2) and (pchange < 0.26):
                         av1=np.average(chain['lnl_iter'][0,n*step_int: 
-                                                         (n+0.1)*step_int])
-                        av2=np.average(chain['lnl_iter'][0,(n+0.5)*step_int: 
+                                                         int((n+0.1)*step_int)])
+                        av2=np.average(chain['lnl_iter'][0,int((n+0.5)*step_int): 
                                                          (n+1)*step_int])
-                        s=np.std(chain['lnl_iter'][0,(n+0.5)*step_int: 
+                        s=np.std(chain['lnl_iter'][0,int((n+0.5)*step_int): 
                                                    (n+1)*step_int-1])
                         if s != 0:
                             if abs(av1-av2)/s > 2.0:
@@ -1375,10 +1383,10 @@ def satmc(filename,*args,**kwargs):
             if (not 'no_temp' in kwargs) and (n-lastswap == (nstep/step_int/2)):
                 kwargs['no_temp']=True
                 temp[:]=0
-                for i in xrange(nchain):
+                for i in range(nchain):
                     maxindx=(n+1)*step_int-1
                     minindx=max(period,lastswap)*step_int
-                    indx=np.random.choice(xrange(minindx,maxindx))
+                    indx=np.random.choice(range(minindx,maxindx))
 
                     chain['params_iter'][i,:,period*step_int-1]= \
                         chain['params_iter'][0,:,indx]
@@ -1395,33 +1403,37 @@ def satmc(filename,*args,**kwargs):
     lnl_good=np.empty(0,dtype=np.longdouble)
     params_good=np.empty((0,nparm+1))
     lum_good=np.empty(0)
-    if synthesis_model != None: sed_good=[]
+    if synthesis_model != None:
+        sed_shape=chain['sed'][0,0,:,:].shape
+        sed_good=np.empty((1,)+sed_shape)
 
-    for i in xrange(nchain):
+    for i in range(nchain):
         dlnl_iter=chain['lnl_iter'][i,1:]-chain['lnl_iter'][i,0:nstep-1]
-        whchange=((abs(dlnl_iter) > 0) & (xrange(nstep) > step_int*2))
+        whchange=np.append([False],((abs(dlnl_iter) > 0)) & (np.array(range(nstep-1)) > step_int*2))
         lnl_good=np.concatenate((lnl_good,chain['lnl_iter'][i,whchange]))
         params_good=np.concatenate((params_good,chain['params_iter'][i,:,whchange]))
         lum_good=np.concatenate((lum_good,chain['lum_iter'][i,whchange]))
-        if synthesis_model != None:
-            sed_good.extend(((chain['sed'][i,whchange.nonzero()])[0]).tolist())
+        if synthesis_model != None: 
+            sed_good=np.concatenate((sed_good,chain['sed'][i,whchange,:,:]))
+ 
 
     dt=[('lnl_good',np.longdouble),('lum_good',np.longdouble),
         ('params_good',float,(nparm+1,))]
-    if 'sed' in chain.dtype.names: dt+=[('sed_good',float,sed.shape)]
+    if 'sed' in chain.dtype.names: dt+=[('sed_good',float,sed_shape)]
     chain_good=np.zeros(len(lnl_good),dtype=dt)
     chain_good['lnl_good']=lnl_good
     chain_good['lum_good']=lum_good
-    if synthesis_model != None: chain_good['sed_good']=np.array(sed_good)
+    if synthesis_model != None: chain_good['sed_good']=sed_good[1:]
 
     #restore paramter space from compressed log-space
     if dr.any():
+        dr=np.append(dr,[False])
         params_good[:,dr]=10**(params_good[:,dr])
         param_max[dr]=10**param_max[dr]
         param_min[dr]=10**param_min[dr]
-        for i in xrange(nsed):
+        for i in range(nsed):
             if seds[i].nparm > 1:
-                gs=np.array([p in seds[i].param_name for p in param_name[:-1]])
+                gs=np.array([p in seds[i].param_name for p in param_name])
                 seds[i].grid[:,dr[gs]]=10**(seds[i].grid[:,dr[gs]])
     chain_good['params_good']=params_good
     
@@ -1432,7 +1444,7 @@ def satmc(filename,*args,**kwargs):
     lum_max=lum_good[whmx]
     params_1sig=np.empty((nparm+1,2))
     sort=(np.sort(lnl_good))[::-1]
-    ind68=np.floor(.682*len(lnl_good))
+    ind68=int(np.floor(.682*len(lnl_good)))
     lnL68=sort[ind68]
     wh1sig=lnl_good >= lnL68
     params_low=np.amin(params_good[wh1sig,:],axis=0)
@@ -1444,7 +1456,7 @@ def satmc(filename,*args,**kwargs):
     #plot the best fit model
     #for grid based, find the model closest to the maximum
     best_mods=np.empty(nsed,dtype='object')
-    for i in xrange(nsed):
+    for i in range(nsed):
         if (i == 0) and synthesis_model != None:
             #grab best fit from synthesized SEDs
             sed=chain_good['sed_good'][whmx,:,:]
@@ -1458,7 +1470,7 @@ def satmc(filename,*args,**kwargs):
                                                       params_max[sel])
                 ndim=sum(sel)
                 grid=np.array([np.array(range(2**ndim))/2**j % 2 
-                               for j in xrange(ndim)])
+                               for j in range(ndim)])
                 mod_best=interpol.griddata(grid.T,mod_best,
                                            ind.reshape((1,ndim)),
                                            method='nearest')
@@ -1472,7 +1484,7 @@ def satmc(filename,*args,**kwargs):
                 best_lum*=params_max[norm]
                 
             s_wave,s_flux=shift_sed(best_wave,best_flux,params_max[-1])
-            best_mod={'lum':best_lum,'sed':np.column_stack((s_wave,s_flux))}
+            best_mod={'lum':best_lum,'sed':np.stack((s_wave,s_flux),axis=0)}
             
         best_mods[i]=best_mod
 
@@ -1483,25 +1495,25 @@ def satmc(filename,*args,**kwargs):
         scalarmap=cmx.ScalarMappable(norm=cnorm,cmap=rainbow)
 
         #co-add SEDs
-        flux_best=best_mods[0]['sed'][:,1]
-        wave_best=best_mods[0]['sed'][:,0]
+        flux_best=best_mods[0]['sed'][1,:]
+        wave_best=best_mods[0]['sed'][0,:]
         
-        for i in xrange(1,nsed):
+        for i in range(1,nsed):
             #determine overlap region and interpolate to corsest binning
             maxwave=min(np.amax(wave_best),np.amax(best_mods[i]['sed'][:,0]))
             minwave=max(np.amin(wave_best),np.amin(best_mods[i]['sed'][:,0]))
             sel=(wave_best <= maxwave) & (wave_best >= minwave)
-            sels=((best_mods[i]['sed'][:,0] <= maxwave) & 
-                  (best_mods[i]['sed'][:,0] >= minwave))
+            sels=((best_mods[i]['sed'][0,:] <= maxwave) & 
+                  (best_mods[i]['sed'][0,:] >= minwave))
 
             if sum(sel) > sum(sels):
-                mod_int=np.interp(best_mods[i]['sed'][sels,0],
+                mod_int=np.interp(best_mods[i]['sed'][0,sels],
                                   wave_best[sel],flux_best[sel])
-                flux_int=best_mods[i]['sed'][sels,1]+mod_int
-                wave_int=best_mods[i]['sed'][sels,0]
+                flux_int=best_mods[i]['sed'][1,sels]+mod_int
+                wave_int=best_mods[i]['sed'][0,sels]
             else:
-                mod_int=np.interp(wave_best[sel],best_mods[i]['sed'][sels,0],
-                                  best_mods[i]['sed'][sels,1])
+                mod_int=np.interp(wave_best[sel],best_mods[i]['sed'][0,sels],
+                                  best_mods[i]['sed'][1,sels])
                 flux_int=flux_best[sel]+mod_int
                 wave_int=wave_best[sel]
 
@@ -1511,18 +1523,18 @@ def satmc(filename,*args,**kwargs):
             if sel.any():
                 wave_int=np.concatenate((wave_int,wave_best[sel]))
                 flux_int=np.concatenate((flux_int,flux_best[sel]))
-            sel=best_mods[i]['sed'][:,0] < minwave
+            sel=best_mods[i]['sed'][0,:] < minwave
             if sel.any():
-                wave_int=np.concatenate((wave_int,best_mods[i]['sed'][sel,0]))
-                flux_int=np.concatenate((flux_int,best_mods[i]['sed'][sel,1]))
+                wave_int=np.concatenate((wave_int,best_mods[i]['sed'][0,sel]))
+                flux_int=np.concatenate((flux_int,best_mods[i]['sed'][1,sel]))
             sel=wave_best > maxwave
             if sel.any():
                 wave_int=np.concatenate((wave_best[sel],wave_int))
                 flux_int=np.concatenate((flux_best[sel],flux_int))
-            sel=best_mods[i]['sed'][:,0] > maxwave
+            sel=best_mods[i]['sed'][0,:] > maxwave
             if sel.any():
-                wave_int=np.concatenate((best_mods[i]['sed'][sel,0],wave_int))
-                flux_int=np.concatenate((best_mods[i]['sed'][sel,1],flux_int))
+                wave_int=np.concatenate((best_mods[i]['sed'][0,sel],wave_int))
+                flux_int=np.concatenate((best_mods[i]['sed'][1,sel],flux_int))
 
             wave_best=wave_int
             flux_best=flux_int
@@ -1530,19 +1542,19 @@ def satmc(filename,*args,**kwargs):
         #plot co-added and component SEDs
         if flam == False:
             plt.plot(wave_best,flux_best,'k-',mfc='none')
-            for i in xrange(nsed):
+            for i in range(nsed):
                 colorval=scalarmap.to_rgba(i)
-                plt.plot(best_mods[i]['sed'][:,0],best_mods[i]['sed'][:,1],
+                plt.plot(best_mods[i]['sed'][0,:],best_mods[i]['sed'][1,:],
                          color=colorval,label='SED '+str(i+1),
                          linestyle='dotted')
             plt.legend(shadow=True, fancybox=True)
         else:
             lfl=flux_best*3.e-9/wave_best
             plt.plot(wave_best,lfl,'k-',mfc='none')
-            for i in xrange(nsed):
+            for i in range(nsed):
                 colorval=scalarmap.to_rgba(i)
-                lfl=best_mods[i]['sed'][:,1]*3.e-9/best_mods[i]['sed'][:,0]
-                plt.plot(best_mods[i]['sed'][:,0],lfl,color=colorval,
+                lfl=best_mods[i]['sed'][1,:]*3.e-9/best_mods[i]['sed'][0,:]
+                plt.plot(best_mods[i]['sed'][0,:],lfl,color=colorval,
                          label='SED '+str(i+1),linestyle='dotted')
             plt.legend(shadow=True, fancybox=True)
         if 'psfile' in kwargs:
@@ -1555,7 +1567,7 @@ def satmc(filename,*args,**kwargs):
         logging.getLogger('').addHandler(fh)
         
     logging.info('Best fit model parameters:')
-    for i in xrange(nparm):
+    for i in range(nparm):
         logging.info('%s: %.4f+%.4f-%.4f' % \
                          (param_name[i],params_max[i],params_1sig[i,0],
                           params_1sig[i,1]))
@@ -1579,7 +1591,7 @@ def satmc(filename,*args,**kwargs):
         np.savez(kwargs.get('outfile'),**savez_kwargs)
 
     #clean up mid-level files
-    for i in xrange(nchain):
+    for i in range(nchain):
         os.remove('chain_'+str(i)+'.log')
         os.remove('chain_'+str(i)+'.npy')
     os.remove('parent_burnin.npy')
