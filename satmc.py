@@ -93,7 +93,7 @@ def find_nearest_grid(grid,p):
     missing=0
     max_grid=np.empty(nparm,dtype=float)
     min_grid=np.empty(nparm,dtype=float)
-    neargrid=np.empty([ngrid],dtype=int)
+    neargrid=np.zeros([ngrid],dtype=int)
     t_grid=grid
 
     #find grid points that bracket all points in P
